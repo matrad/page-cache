@@ -1,5 +1,10 @@
 # Laravel Page Cache
 
+[![Latest Stable Version][ico-version]][link-packagist]
+[![Build Status][ico-travis]][link-travis]
+[![Total Downloads][ico-downloads]][link-downloads]
+[![License][ico-license]](LICENSE.txt)
+
 This package allows you to easily cache responses as static files on disk for lightning fast page loads.
 
 - [Introduction](#introduction)
@@ -11,13 +16,14 @@ This package allows you to easily cache responses as static files on disk for li
 - [Usage](#usage)
   - [Using the middleware](#using-the-middleware)
   - [Clearing the cache](#clearing-the-cache)
+  - [Customizing what to cache](#customizing-what-to-cache)
 - [License](#license)
 
 ---
 
 ## Introduction
 
-While static site builders such as [Jekyll](https://jekyllrb.com/) and [Jigsaw](http://jigsaw.tighten.co/) are extremely popular these days, dynamic PHP sites still offer a lot of value even for a site that is mostly static. A proper PHP site allows you to easily add dynamic functionality wherever needed, and also means that there's no build step involved in pushing updates to the site.
+While static site builders such as [Jekyll](https://jekyllrb.com/) and [Jigsaw](https://jigsaw.tighten.co/) are extremely popular these days, dynamic PHP sites still offer a lot of value even for a site that is mostly static. A proper PHP site allows you to easily add dynamic functionality wherever needed, and also means that there's no build step involved in pushing updates to the site.
 
 That said, for truly static pages on a site there really is no reason to have to boot up a full PHP app just to serve a static page. Serving a simple HTML page from disk is infinitely faster and less taxing on the server.
 
@@ -62,7 +68,7 @@ If you want to selectively cache only specific requests to your site, you should
 
 ```php
 protected $routeMiddleware = [
-    'page-cache' => Silber\PageCache\Middleware\CacheResponse::class,
+    'page-cache' => \Silber\PageCache\Middleware\CacheResponse::class,
     /* ... keep the existing mappings here */
 ];
 ```
@@ -113,7 +119,7 @@ To make sure you don't commit your locally cached files to your git repository, 
 ### Using the middleware
 
 > **Note:** If you've added the middleware to the global `web` group, then all successful GET requests will automatically be cached. No need to put the middleware again directly on the route.
-> 
+>
 > If you instead registered it as a route middleware, you should use the middleware on whichever routes you want to be cached.
 
 To cache the response of a given request, use the `page-cache` middleware:
@@ -136,6 +142,60 @@ As a rule of thumb, it's good practice to add this to your deployment script. Th
 
 If you're using [Forge](https://forge.laravel.com)'s Quick Deploy feature, you should add this line to the end of your Deploy Script. This'll ensure that the cache is cleared whenever you push an update to your site.
 
+You may optionally pass a URL slug to the command, to only delete the cache for a specific page:
+
+```
+php artisan page-cache:clear {slug}
+```
+
+### Customizing what to cache
+
+By default, all GET requests with a 200 HTTP response code are cached. If you want to change that, create your own middleware that extends the package's base middleware, and override the `shouldCache` method with your own logic.
+
+1. Run the `make:middleware` Artisan command to create your middleware file:
+
+    ```
+    php artisan make:middleware CacheResponse
+    ```
+
+2. Replace the contents of the file at `app/Http/Middleware/CacheResponse.php` with this:
+
+    ```php
+    <?php
+
+    namespace App\Http\Middleware;
+
+    use Symfony\Component\HttpFoundation\Request;
+    use Symfony\Component\HttpFoundation\Response;
+    use Silber\PageCache\Middleware\CacheResponse as BaseCacheResponse;
+
+    class CacheResponse extends BaseCacheResponse
+    {
+        protected function shouldCache(Request $request, Response $response)
+        {
+            // In this example, we don't ever want to cache pages if the
+            // URL contains a query string. So we first check for it,
+            // then defer back up to the parent's default checks.
+            if ($request->getQueryString()) {
+                return false;
+            }
+
+            return parent::shouldCache($request, $response);
+        }
+    }
+    ```
+
+3. Finally, update the middleware references in your `app/Http/Kernel.php` file, to point to your own middleware.
+
 ## License
 
-The Page Cache package is open-sourced software licensed under the [MIT license](http://opensource.org/licenses/MIT).
+The Page Cache package is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+[ico-downloads]: https://poser.pugx.org/silber/page-cache/downloads
+[ico-license]: https://poser.pugx.org/silber/page-cache/license
+[ico-travis]: https://travis-ci.org/JosephSilber/page-cache.svg
+[ico-version]: https://poser.pugx.org/silber/page-cache/v/stable
+
+[link-downloads]: https://packagist.org/packages/silber/page-cache
+[link-packagist]: https://packagist.org/packages/silber/page-cache
+[link-travis]: https://travis-ci.org/JosephSilber/page-cache
