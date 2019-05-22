@@ -5,6 +5,7 @@ namespace Silber\PageCache;
 use Exception;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -30,6 +31,14 @@ class Cache
      * @var string|null
      */
     protected $cachePath = null;
+
+
+    /**
+     * The extension of the cached file
+     *
+     * @var string
+     */
+    protected $extension = 'html';
 
     /**
      * Constructor.
@@ -138,7 +147,7 @@ class Cache
      */
     public function shouldCache(Request $request, Response $response)
     {
-        return ($request->isMethod('GET') || $request->isMethod('HEAD')) 
+        return ($request->isMethod('GET') || $request->isMethod('HEAD'))
             && $response->getStatusCode() == 200;
     }
 
@@ -151,8 +160,10 @@ class Cache
      */
     public function cache(Request $request, Response $response)
     {
+        if($response instanceof JsonResponse) {
+            $this->extension = 'json';
+        }
         list($path, $file) = $this->getDirectoryAndFileNames($request);
-
         $this->files->makeDirectory($path, 0775, true, true);
         if($response->getContent() && !empty($response->getContent())) {
             $this->files->put($this->join([$path,$file]), $response->getContent(), true);
@@ -167,7 +178,7 @@ class Cache
      */
     public function forget($slug)
     {
-        return $this->files->delete($this->getCachePath($slug.'.html'));
+        return $this->files->delete($this->getCachePath($slug.'.'.$this->extension));
     }
 
     /**
@@ -190,7 +201,7 @@ class Cache
     {
         $segments = explode('/', ltrim($request->getPathInfo(), '/'));
 
-        $file = $this->aliasFilename(array_pop($segments)).'.html';
+        $file = $this->aliasFilename(array_pop($segments)).'.'.$this->extension;
 
         return [$this->getCachePath(implode('/', $segments)), $file];
     }
