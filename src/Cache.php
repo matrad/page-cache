@@ -155,7 +155,7 @@ class Cache
 
         $this->files->makeDirectory($path, 0775, true, true);
         if($response->getContent() && !empty($response->getContent())) {
-            $this->files->put($path.$file, $response->getContent(), true);
+            $this->files->put($this->join([$path,$file]), $response->getContent(), true);
         }
     }
 
